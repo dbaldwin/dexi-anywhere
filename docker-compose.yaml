@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  dexi-droneblocks:
+    image: droneblocks/dexi-droneblocks:anywhere
+    # build: 
+    #   context: ./dexi-droneblocks
+    #   dockerfile: Dockerfile
+    container_name: dexi-droneblocks
+    ports:
+      - "81:80"
+    restart: unless-stopped
+
+  # dexi-node-red:
+  #   image: droneblocks/dexi-node-red:latest
+  #   container_name: dexi-node-red
+  #   ports:
+  #     - "1880:1880"
+  #   volumes:
+  #     - /home/dexi/node-red-dexi/flows:/data
+  #   restart: unless-stopped
+  
+  nginx:
+    image: nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    network_mode: host
