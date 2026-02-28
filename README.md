@@ -72,7 +72,7 @@ sudo docker ps
 
 ## 5G Modem Setup (Optional)
 
-For field use without WiFi, add a USB 5G modem to the Pi.
+For field use without WiFi, add a USB 5G modem to the Pi. The setup script handles everything — just plug in the modem before running it.
 
 ### Supported hardware
 
@@ -86,14 +86,9 @@ Tested with TCL LINKPORT IK511 (T-Mobile). Any USB modem that presents as a `cdc
    lsusb | grep -i "mobile\|modem\|1bbb"
    ip addr show eth1
    ```
-3. Set WiFi route metric so 5G is used for the tunnel when both are connected:
-   ```bash
-   sudo nmcli connection modify '<wifi-connection-name>' ipv4.route-metric 600
-   ```
+3. Run the same setup script from [Quick Start](#2-run-the-setup-script) — it detects the 5G modem and configures routing automatically
 
-The tunnel will automatically use whichever connection is available. When both WiFi and 5G are connected, 5G (metric 100) takes priority for the tunnel while WiFi (metric 600) remains available for local SSH and downloads.
-
-When you take the Pi outside with no WiFi, the tunnel runs entirely over 5G.
+The tunnel uses whichever connection is available. When both WiFi and 5G are connected, 5G (metric 100) takes priority for the tunnel while WiFi (metric 600) remains available for local SSH and large downloads. When you take the Pi outside with no WiFi, the tunnel runs entirely over 5G.
 
 ## Node-RED Rosbridge Config
 
