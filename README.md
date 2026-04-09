@@ -1,42 +1,66 @@
 # DEXI Anywhere
 
-Access your DEXI drone remotely using a Cloudflare Tunnel. Works over WiFi or 5G.
+Fly your DEXI drone over 5G with remote access through a Cloudflare Tunnel. No WiFi required in the field.
 
-## Architecture
+## What You Need
+
+- **DEXI drone** with Raspberry Pi running the DEXI stack
+- **5G USB modem**: [TCL LINKPORT IK511 (T-Mobile)](https://www.t-mobile.com/home-internet/device/t-mobile-5g-dongle/197235200?sku=197235200) — plug and play, no drivers or configuration needed
+- **Active SIM / data plan** on the modem
+- **Cloudflare account** (free tier) with a domain (~$12/year if you don't have one)
+
+## How It Works
 
 ```
 Internet → Cloudflare Tunnel → nginx (port 80) → Local Services
                   ↑                   ├─ /           → DroneBlocks  (:81 → :3000)
             WiFi or 5G               ├─ /nodered/   → Node-RED     (:1880)
-                                      ├─ /vscode/    → VS Code      (:9999)
-                                      ├─ /ros/       → ROS Web UI   (:8080)
-                                      └─ /rosbridge  → ROSBridge WS (:9090)
+                                     ├─ /vscode/    → VS Code      (:9999)
+                                     ├─ /ros/       → ROS Web UI   (:8080)
+                                     └─ /rosbridge  → ROSBridge WS (:9090)
 ```
 
-## Prerequisites
+The Pi connects to the internet over 5G (or WiFi when available). A Cloudflare Tunnel gives you a public HTTPS URL to access all DEXI services from anywhere — your laptop, phone, or tablet.
 
-- Raspberry Pi with DEXI stack running (DroneBlocks, Node-RED, rosbridge, etc.)
-- Docker installed on the Pi
-- Cloudflare account (free tier) with a domain
+**Network priority:**
+- When both WiFi and 5G are connected, **5G is preferred** (route metric 100) for the tunnel
+- WiFi (metric 600) stays available for local SSH and large file transfers
+- When you take the drone outside with no WiFi, everything runs over 5G automatically
 
-## Quick Start
+## Step 1: Plug In the 5G Modem
 
-### 1. Create a Cloudflare Tunnel
+1. Insert SIM card into the modem and power it on to verify you have signal (LED indicators on the modem)
+2. Plug the modem into any USB port on the Pi
+3. Wait ~30 seconds — the modem appears as a network interface automatically (no drivers needed)
+4. Verify on the DEXI dashboard at `http://<pi-ip>/status` — the **Cellular** card should show **Connected** with an IP address
 
-1. Sign up at [cloudflare.com](https://cloudflare.com) (free tier)
-2. Add a domain (buy one for ~$12/year if needed) and point nameservers to Cloudflare
+If you prefer to verify via SSH:
+```bash
+# Check the modem is detected
+lsusb | grep "1bbb"
+# Should show: T & A Mobile Phones Dongle
+
+# Check it has an IP
+ip addr show eth1
+# Look for an "inet" line like: inet 192.168.0.x/24
+```
+
+## Step 2: Create a Cloudflare Tunnel
+
+1. Sign up at [cloudflare.com](https://cloudflare.com) (free tier works)
+2. Add a domain and point its nameservers to Cloudflare
 3. Go to **Zero Trust** → **Networks** → **Tunnels** → **Create a Tunnel**
-4. Select **cloudflared** type, name your tunnel
+4. Select **cloudflared** type and name your tunnel (e.g. `my-dexi`)
 5. Add a **Public Hostname**:
-   - Subdomain: e.g. `dexi-anywhere`
+   - Subdomain: e.g. `dexi`
    - Domain: your domain
    - Service type: `HTTP`
    - URL: `localhost`
-6. Copy the tunnel token (starts with `eyJ...`)
+6. Copy the tunnel token (starts with `eyJ...`) — you'll need this in the next step
 
-### 2. Run the setup script
+## Step 3: Run the Setup Script
 
-Clone this repo on the Pi and run:
+SSH into the Pi and run:
 
 ```bash
 git clone https://github.com/dbaldwin/dexi-anywhere.git ~/dexi-anywhere
@@ -44,51 +68,30 @@ cd ~/dexi-anywhere
 sudo ./setup-5g.sh <your-tunnel-token>
 ```
 
-The script:
-- Installs cloudflared (downloads via WiFi if available)
-- Moves dexi-droneblocks to port 81 behind nginx
-- Deploys the nginx reverse proxy on port 80
+The script automatically:
+- Installs `cloudflared` (downloads via WiFi if available)
+- Moves the DroneBlocks dashboard behind an nginx reverse proxy
+- Sets WiFi route metric to 600 so 5G takes priority
 - Creates a systemd service so everything survives reboot
 
-### 3. Verify
+## Step 4: Verify
 
-Open `https://your-subdomain.your-domain.com` in a browser.
+Open your tunnel URL in a browser: `https://dexi.your-domain.com`
 
-Check status on the Pi:
-```bash
-systemctl status cloudflared
-sudo docker ps
-```
-
-## Services
+You should see the DroneBlocks dashboard. All services are accessible:
 
 | Path | Service | Description |
 |------|---------|-------------|
 | `/` | DroneBlocks | Main flight dashboard |
-| `/nodered/` | Node-RED | Visual programming for drone |
+| `/nodered/` | Node-RED | Visual programming |
 | `/vscode/` | VS Code | Remote code editor |
-| `/ros/` | ROS Web UI | ROS visualization (port 8080) |
+| `/ros/` | ROS Web UI | ROS visualization |
 | `/rosbridge` | ROSBridge | WebSocket bridge for ROS2 |
 
-## 5G Modem Setup (Optional)
-
-For field use without WiFi, add a USB 5G modem to the Pi. The setup script handles everything — just plug in the modem before running it.
-
-### Supported hardware
-
-Tested with TCL LINKPORT IK511 (T-Mobile). Any USB modem that presents as a `cdc_ether` network interface should work.
-
-### Setup
-
-1. Plug the modem into a USB port on the Pi
-2. Verify it's detected:
-   ```bash
-   lsusb | grep -i "mobile\|modem\|1bbb"
-   ip addr show eth1
-   ```
-3. Run the same setup script from [Quick Start](#2-run-the-setup-script) — it detects the 5G modem and configures routing automatically
-
-The tunnel uses whichever connection is available. When both WiFi and 5G are connected, 5G (metric 100) takes priority for the tunnel while WiFi (metric 600) remains available for local SSH and large downloads. When you take the Pi outside with no WiFi, the tunnel runs entirely over 5G.
+Check tunnel status on the Pi:
+```bash
+systemctl status cloudflared
+```
 
 ## Node-RED Rosbridge Config
 
@@ -98,26 +101,7 @@ When using Node-RED through the tunnel, set the ROS2 Websocket Server URL to:
 ws://172.17.0.1:9090
 ```
 
-This is the Docker bridge gateway — it lets the Node-RED container reach rosbridge on the host. This address is the same on all standard Docker installations.
-
-## How It Works
-
-**WebSocket handling:** Pages served over HTTPS through the tunnel use `wss://` and route WebSocket connections through nginx at `/rosbridge`. Local HTTP access still uses `ws://hostname:9090` directly. This is handled automatically in `dexi-droneblocks` v0.13+.
-
-**Reboot tolerance:** cloudflared runs as a systemd service, all Docker containers use `--restart unless-stopped`, and network metrics are persisted in NetworkManager.
-
-## Troubleshooting
-
-**502 Bad Gateway:** A backend service isn't running. Check `sudo docker ps` and verify the expected containers are up.
-
-**Tunnel not connecting:** Check `sudo journalctl -u cloudflared -f` for errors. Verify the tunnel token is correct and the public hostname is configured in Cloudflare dashboard.
-
-**WebSocket errors (mixed content):** Make sure you're using `dexi-droneblocks` v0.13+ which automatically uses `wss://` over HTTPS. Older versions hardcode `ws://hostname:9090` which browsers block on HTTPS pages.
-
-**Slow downloads over 5G:** Force downloads through WiFi:
-```bash
-curl --interface wlan0 -L -O <url>
-```
+This is the Docker bridge gateway — it lets the Node-RED container reach rosbridge on the host.
 
 ## Managing the Tunnel
 
@@ -134,6 +118,27 @@ sudo systemctl restart cloudflared
 # Stop (disable remote access)
 sudo systemctl stop cloudflared
 ```
+
+## Troubleshooting
+
+**Modem not detected:** Unplug and replug the USB modem. Check `lsusb` for the device. If `eth1` doesn't appear after 30 seconds, try a different USB port.
+
+**No internet over 5G:** The modem has an IP but can't reach the internet. Check signal strength on the modem's LED indicators. Try `ping -I eth1 8.8.8.8` to test. Some carriers require APN configuration — contact your carrier if pings fail.
+
+**502 Bad Gateway:** A backend service isn't running. Check `sudo docker ps` and verify the expected containers are up.
+
+**Tunnel not connecting:** Check `sudo journalctl -u cloudflared -f` for errors. Verify the tunnel token is correct and the public hostname is configured in the Cloudflare dashboard.
+
+**WebSocket errors (mixed content):** Make sure you're using `dexi-droneblocks` v0.13+ which automatically uses `wss://` over HTTPS.
+
+**Slow downloads over 5G:** Force large downloads through WiFi instead:
+```bash
+curl --interface wlan0 -L -O <url>
+```
+
+## Supported Hardware
+
+Tested with **TCL LINKPORT IK511** (T-Mobile). Any USB modem that presents as a `cdc_ether` network interface should work, including common models from Huawei, ZTE, Quectel, and Sierra Wireless.
 
 ## License
 
