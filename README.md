@@ -7,7 +7,7 @@ Access your DEXI drone remotely through a Cloudflare Tunnel. Works over WiFi, 5G
 - **DEXI drone** with Raspberry Pi running the DEXI stack
 - **Internet connection** — one or both of:
   - **WiFi** with internet access (your existing setup)
-  - **5G USB modem**: [TCL LINKPORT IK511 (T-Mobile)](https://www.t-mobile.com/home-internet/device/t-mobile-5g-dongle/197235200?sku=197235200) with an active SIM / data plan — plug and play, no drivers needed
+  - **5G USB modem**: [TCL LINKPORT IK511](https://us.tcl.com/products/linkport-ik511) with an active SIM / data plan — plug and play, no drivers needed
 - **Cloudflare account** (free tier) with a domain (~$12/year if you don't have one)
 
 ## How It Works
