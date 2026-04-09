@@ -43,9 +43,7 @@ If your Pi is already connected to WiFi with internet access, skip to [Step 2](#
 1. Insert SIM card into the modem and power it on to verify you have signal (LED indicators on the modem)
 2. Plug the modem into any USB port on the Pi
 3. Wait ~30 seconds — the modem appears as a network interface automatically (no drivers needed)
-4. Verify on the DEXI dashboard at `http://<pi-ip>/status` — the **Cellular** card should show **Connected** with an IP address
-
-If you prefer to verify via SSH:
+4. Verify via SSH:
 ```bash
 # Check the modem is detected
 lsusb | grep "1bbb"
@@ -55,6 +53,8 @@ lsusb | grep "1bbb"
 ip addr show eth1
 # Look for an "inet" line like: inet 192.168.0.x/24
 ```
+
+> **Note:** If the Pi is also on WiFi, you can verify on the DEXI dashboard at `http://<pi-wifi-ip>/status` — the **Cellular** card will show **Connected** with the modem's IP address.
 
 ## Step 2: Create a Cloudflare Tunnel
 
