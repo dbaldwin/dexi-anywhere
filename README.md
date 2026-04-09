@@ -1,12 +1,13 @@
 # DEXI Anywhere
 
-Fly your DEXI drone over 5G with remote access through a Cloudflare Tunnel. No WiFi required in the field.
+Access your DEXI drone remotely through a Cloudflare Tunnel. Works over WiFi, 5G, or both.
 
 ## What You Need
 
 - **DEXI drone** with Raspberry Pi running the DEXI stack
-- **5G USB modem**: [TCL LINKPORT IK511 (T-Mobile)](https://www.t-mobile.com/home-internet/device/t-mobile-5g-dongle/197235200?sku=197235200) — plug and play, no drivers or configuration needed
-- **Active SIM / data plan** on the modem
+- **Internet connection** — one or both of:
+  - **WiFi** with internet access (your existing setup)
+  - **5G USB modem**: [TCL LINKPORT IK511 (T-Mobile)](https://www.t-mobile.com/home-internet/device/t-mobile-5g-dongle/197235200?sku=197235200) with an active SIM / data plan — plug and play, no drivers needed
 - **Cloudflare account** (free tier) with a domain (~$12/year if you don't have one)
 
 ## How It Works
@@ -20,14 +21,24 @@ Internet → Cloudflare Tunnel → nginx (port 80) → Local Services
                                      └─ /rosbridge  → ROSBridge WS (:9090)
 ```
 
-The Pi connects to the internet over 5G (or WiFi when available). A Cloudflare Tunnel gives you a public HTTPS URL to access all DEXI services from anywhere — your laptop, phone, or tablet.
+A Cloudflare Tunnel gives you a public HTTPS URL to access all DEXI services from anywhere — your laptop, phone, or tablet. The tunnel runs over whatever internet connection is available.
 
-**Network priority:**
-- When both WiFi and 5G are connected, **5G is preferred** (route metric 100) for the tunnel
+**When both WiFi and 5G are connected:**
+- **5G is preferred** for the tunnel (route metric 100)
 - WiFi (metric 600) stays available for local SSH and large file transfers
-- When you take the drone outside with no WiFi, everything runs over 5G automatically
+- If 5G drops, the tunnel automatically falls back to WiFi
 
-## Step 1: Plug In the 5G Modem
+**WiFi only:** The tunnel runs entirely over WiFi. No modem needed.
+
+**5G only (field use):** Take the drone outside with no WiFi — everything runs over 5G automatically.
+
+## Step 1: Connect to the Internet
+
+### Option A: WiFi Only
+
+If your Pi is already connected to WiFi with internet access, skip to [Step 2](#step-2-create-a-cloudflare-tunnel).
+
+### Option B: 5G Modem
 
 1. Insert SIM card into the modem and power it on to verify you have signal (LED indicators on the modem)
 2. Plug the modem into any USB port on the Pi
@@ -65,13 +76,13 @@ SSH into the Pi and run:
 ```bash
 git clone https://github.com/dbaldwin/dexi-anywhere.git ~/dexi-anywhere
 cd ~/dexi-anywhere
-sudo ./setup-5g.sh <your-tunnel-token>
+sudo ./setup.sh <your-tunnel-token>
 ```
 
 The script automatically:
 - Installs `cloudflared` (downloads via WiFi if available)
 - Moves the DroneBlocks dashboard behind an nginx reverse proxy
-- Sets WiFi route metric to 600 so 5G takes priority
+- If a 5G modem is detected, sets WiFi route metric to 600 so 5G takes priority
 - Creates a systemd service so everything survives reboot
 
 ## Step 4: Verify
@@ -136,7 +147,7 @@ sudo systemctl stop cloudflared
 curl --interface wlan0 -L -O <url>
 ```
 
-## Supported Hardware
+## Supported 5G Hardware
 
 Tested with **TCL LINKPORT IK511** (T-Mobile). Any USB modem that presents as a `cdc_ether` network interface should work, including common models from Huawei, ZTE, Quectel, and Sierra Wireless.
 
